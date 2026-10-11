@@ -2,10 +2,13 @@ from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
+import logging
 from typing import Any
 
 from streamstats.errors import InvalidEventError, InvalidTimestampError
 from streamstats.models import LogEvent
+
+logger = logging.getLogger('streamstats')
 
 
 @dataclass
@@ -37,11 +40,15 @@ def analyze_events(
     for record in records:
         try:
             event = LogEvent.from_dict(record)
-        except (InvalidEventError, InvalidTimestampError):
+        except (InvalidEventError, InvalidTimestampError) as error:
             if skip_invalid:
+                logger.warning(f'Пропущена некорректная запись: {error}')
                 invalid_records += 1
                 continue
             raise
+
+        total_events += 1
+        # дальше всё остаётся как было...
 
         total_events += 1
         events_by_level[event.level] += 1
