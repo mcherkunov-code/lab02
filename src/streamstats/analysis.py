@@ -1,19 +1,19 @@
+import logging
 from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
-import logging
 from typing import Any
 
 from streamstats.errors import InvalidEventError, InvalidTimestampError
 from streamstats.models import LogEvent
 
-logger = logging.getLogger('streamstats')
+logger = logging.getLogger("streamstats")
 
 
 @dataclass
 class AnalysisResult:
-    '''Контейнер для хранения агрегированной статистики потока логов.'''
+    """Контейнер для хранения агрегированной статистики потока логов."""
 
     total_events: int
     events_by_level: dict[str, int]
@@ -28,7 +28,7 @@ def analyze_events(
     records: Iterator[dict[str, Any]],
     skip_invalid: bool = False,
 ) -> AnalysisResult:
-    '''Выполняет однопроходную потоковую агрегацию событий без загрузки всего файла в память.'''
+    """Выполняет однопроходную потоковую агрегацию событий без загрузки всего файла в память."""
     total_events = 0
     invalid_records = 0
     events_by_level: Counter[str] = Counter()
@@ -42,29 +42,24 @@ def analyze_events(
             event = LogEvent.from_dict(record)
         except (InvalidEventError, InvalidTimestampError) as error:
             if skip_invalid:
-                logger.warning(f'Пропущена некорректная запись: {error}')
+                logger.warning(f"Допущена ошибка в записи: {error}")
                 invalid_records += 1
                 continue
             raise
 
         total_events += 1
-        # дальше всё остаётся как было...
-
-        total_events += 1
         events_by_level[event.level] += 1
         events_by_source[event.source] += 1
 
-        if event.level in {'ERROR', 'CRITICAL'}:
+        if event.level in {"ERROR", "CRITICAL"}:
             error_sources[event.source] += 1
 
         if start_time is None:
             start_time = event.timestamp
             end_time = event.timestamp
         else:
-            if event.timestamp < start_time:
-                start_time = event.timestamp
-            if event.timestamp > end_time:
-                end_time = event.timestamp
+            start_time = min(start_time, event.timestamp)
+            end_time = max(end_time, event.timestamp)
 
     sorted_errors = sorted(
         error_sources.items(),
