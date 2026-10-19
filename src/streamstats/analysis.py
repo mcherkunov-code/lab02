@@ -75,3 +75,34 @@ def analyze_events(
         end_time=end_time,
         invalid_records=invalid_records,
     )
+
+
+def filter_records(
+    records: Iterator[dict[str, Any]],
+    level: str | None = None,
+    source: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> Iterator[dict[str, Any]]:
+    """Ленивый фильтр сырых записей по уровню, источнику и времени."""
+    for record in records:
+        if level is not None and record.get("level") != level:
+            continue
+        if source is not None and record.get("source") != source:
+            continue
+        if since is not None or until is not None:
+            raw_ts = record.get("timestamp")
+            if isinstance(raw_ts, str):
+                try:
+                    normalized = raw_ts[:-1] + "+00:00" if raw_ts.endswith("Z") else raw_ts
+                    ts = datetime.fromisoformat(normalized)
+                except ValueError:
+                    # Если дата битая, пропускаем её дальше — с ней разберётся analyze_events
+                    yield record
+                    continue
+                if since is not None and ts < since:
+                    continue
+                if until is not None and ts > until:
+                    continue
+        yield record
+

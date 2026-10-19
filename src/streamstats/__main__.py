@@ -2,10 +2,11 @@ import argparse
 import logging
 import sys
 from collections.abc import Iterator
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from streamstats.analysis import analyze_events
+from streamstats.analysis import analyze_events, filter_records
 from streamstats.errors import StreamStatsError
 from streamstats.parsers import get_parser, parse_csv, parse_jsonl
 from streamstats.report import render_csv_report, render_report
@@ -83,6 +84,27 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Пропускать повреждённые строки вместо остановки.",
     )
+    analyze_parser.add_argument(
+        "--level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default=None,
+        help="Фильтр по уровню логирования.",
+    )
+    analyze_parser.add_argument(
+        "--source",
+        default=None,
+        help="Фильтр по источнику события.",
+    )
+    analyze_parser.add_argument(
+        "--since",
+        default=None,
+        help="Нижняя граница времени (ISO 8601).",
+    )
+    analyze_parser.add_argument(
+        "--until",
+        default=None,
+        help="Верхняя граница времени (ISO 8601).",
+    )
 
     return parser
 
@@ -96,6 +118,15 @@ def main() -> int:
     if args.command == "analyze":
         try:
             records = stream_records(args.inputs, args.format)
+            since_dt = datetime.fromisoformat(args.since) if args.since else None
+            until_dt = datetime.fromisoformat(args.until) if args.until else None
+            records = filter_records(
+                records,
+                level=args.level,
+                source=args.source,
+                since=since_dt,
+                until=until_dt,
+            )
             result = analyze_events(records, skip_invalid=args.skip_invalid)
             if args.output and str(args.output).endswith(".csv"):
                 report_text = render_csv_report(result)
