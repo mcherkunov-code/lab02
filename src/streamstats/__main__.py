@@ -8,7 +8,7 @@ from typing import Any
 from streamstats.analysis import analyze_events
 from streamstats.errors import StreamStatsError
 from streamstats.parsers import get_parser, parse_csv, parse_jsonl
-from streamstats.report import render_report
+from streamstats.report import render_csv_report, render_report
 
 logger = logging.getLogger("streamstats")
 
@@ -97,7 +97,10 @@ def main() -> int:
         try:
             records = stream_records(args.inputs, args.format)
             result = analyze_events(records, skip_invalid=args.skip_invalid)
-            report_text = render_report(result)
+            if args.output and str(args.output).endswith(".csv"):
+                report_text = render_csv_report(result)
+            else:
+                report_text = render_report(result)
 
             if args.output:
                 output_path = Path(args.output)

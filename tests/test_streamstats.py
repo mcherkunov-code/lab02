@@ -8,7 +8,7 @@ import pytest
 from streamstats.analysis import analyze_events
 from streamstats.errors import InvalidEventError
 from streamstats.parsers import parse_csv, parse_jsonl
-from streamstats.report import render_report
+from streamstats.report import render_csv_report, render_report
 
 
 def test_parsers_csv_and_jsonl(tmp_path: Path) -> None:
@@ -141,3 +141,25 @@ def test_cli_integration(tmp_path: Path) -> None:
     report_data = json.loads(out_file.read_text(encoding='utf-8'))
     assert report_data['total_events'] == 1
     assert report_data['invalid_records'] == 1
+
+
+def test_csv_report_no_recalculation() -> None:
+    '''Тест генерации CSV-отчёта из готового результата без повторного расчёта.'''
+    records = [
+        {
+            'timestamp': '2026-10-18T12:00:00+03:00',
+            'level': 'ERROR',
+            'source': 'db',
+            'message': 'timeout',
+        }
+    ]
+    result = analyze_events(iter(records))
+    csv_text = render_csv_report(result)
+
+    assert 'category,key,value' in csv_text
+    assert 'summary,total_events,1' in csv_text
+    assert 'top_error_sources,db,1' in csv_text
+
+
+
+
